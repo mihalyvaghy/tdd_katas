@@ -28,3 +28,12 @@ class CalculatorTest(unittest.TestCase):
             calculator.add("1,-1")
 
         self.assertEqual(("Negative numbers not allowed", -1), e.exception.args)
+
+    def test_too_big_numbers(self):
+        self.assertEqual(1, calculator.add("1,1111"))
+
+    def test_lengthy_delimiter(self):
+        self.assertEqual(2, calculator.add("//[***]\n1***1"))
+
+    def test_lengthy_mixed_delimiter(self):
+        self.assertEqual(3, calculator.add("//[***]\n1***1\n1"))
