@@ -1,70 +1,74 @@
-import re
+from .infix_to_postfix import InfixToPostfix
+from abc import ABC, abstractmethod
 
 class BinExpTree:
-    @staticmethod
-    def __is_operator(char):
-        return char in "+-*/^"
+    class Node(ABC):
+        def __init__(self, **kwargs):
+            self.word = kwargs.get("word")
+            self.left = kwargs.get("left")
+            self.right = kwargs.get("right")
 
-    @staticmethod
-    def __is_operand(char):
-        return not BinExpTree.__is_operator(char) and char not in "()"
+        @abstractmethod
+        def to_string(self, parent_precedence):
+            pass
 
-    @staticmethod
-    def __precedence(operator):
-        return {"+": 1, "-": 1, "*": 2, "/": 2, "^": 3, "(": -1, ")": -1}[operator]
+        @abstractmethod
+        def evaluate(self):
+            pass
 
-    @staticmethod
-    def __empty_stack(stack):
-        return len(stack) == 0
+    class Operator(Node):
+        def __init__(self, operator, left, right):
+            super().__init__(word=operator, left=left, right=right)
 
-    @staticmethod
-    def __higher_precedence(operator_1, operator_2):
-        return BinExpTree.__precedence(operator_1) >= BinExpTree.__precedence(operator_2)
+        def to_string(self, parent_precedence):
+            result = ""
+            if parent_precedence > InfixToPostfix.precedence(self.word):
+                result += "("
+            result += self.left.to_string(InfixToPostfix.precedence(self.word))
+            result += self.word
+            result += self.right.to_string(InfixToPostfix.precedence(self.word))
+            if parent_precedence > InfixToPostfix.precedence(self.word):
+                result += ")"
+            return result
 
-    @staticmethod
-    def __pop_higher_precedence(stack, postfix, operator):
-        while not BinExpTree.__empty_stack(stack) and BinExpTree.__higher_precedence(stack[-1], operator):
-            postfix.append(stack.pop())
-        return stack, postfix
+        def evaluate(self):
+            operand_1 = self.left.evaluate()
+            operand_2 = self.right.evaluate()
+            if self.word == "+":
+                return operand_1 + operand_2
+            elif self.word == "-":
+                return operand_1 - operand_2
+            elif self.word == "*":
+                return operand_1 * operand_2
+            elif self.word == "/":
+                return operand_1 / operand_2
+            elif self.word == "^":
+                return operand_1 ** operand_2
 
-    @staticmethod
-    def __pop_parenthesis(stack, postfix):
-        while stack[-1] != "(":
-            postfix.append(stack.pop())
-        stack.pop()
-        return stack, postfix
+    class Operand(Node):
+        def __init__(self, operand):
+            super().__init__(word=operand)
 
-    @staticmethod
-    def infix_to_postfix_stack(expression):
-        postfix = []
-        stack = []
-        tmp_operand = ""
-        infix = re.split("(\+|-|\*|/|\^|\(|\))", expression)
-        for word in infix:
-            if word == "":
-                continue
-            elif BinExpTree.__is_operand(word):
-                postfix.append(word)
-            elif BinExpTree.__is_operator(word):
-                if BinExpTree.__empty_stack(stack) or stack[-1] == "(" or BinExpTree.__higher_precedence(word, stack[-1]):
-                    stack.append(word)
-                else:
-                    stack, postfix = BinExpTree.__pop_higher_precedence(stack, postfix, word)
-                    stack.append(word)
-            elif word == "(":
-                stack.append(word)
-            elif word == ")":
-                stack, postfix = BinExpTree.__pop_parenthesis(stack, postfix)
-        while len(stack) != 0:
-            postfix.append(stack.pop())
-        return postfix
+        def to_string(self, parent_precedence):
+            return self.word
 
-    @staticmethod
-    def infix_to_postfix(expression):
-        return "".join(BinExpTree.infix_to_postfix_stack(expression))
+        def evaluate(self):
+            return float(self.word)
 
     def __init__(self, expression):
-        pass
+        postfix = InfixToPostfix.convert_stack(expression)
+        stack = []
+        for word in postfix:
+            if InfixToPostfix.is_operand(word):
+                stack.append(BinExpTree.Operand(word))
+            else:
+                right = stack.pop()
+                left = stack.pop()
+                stack.append(BinExpTree.Operator(word, left, right))
+        self.root = stack.pop()
 
-    def print(self):
-        pass
+    def to_string(self):
+        return self.root.to_string(0)
+    
+    def evaluate(self):
+        return self.root.evaluate()
